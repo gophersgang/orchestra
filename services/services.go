@@ -9,14 +9,15 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/gophersgang/orchestra/config"
+
 	"go/build"
 
 	"gopkg.in/yaml.v1"
-
-	log "github.com/cihub/seelog"
 )
 
 var (
+	log = config.Logger
 	// Internal Service Registry
 	Registry map[string]*Service
 
@@ -107,8 +108,13 @@ func (s *Service) IsRunning() bool {
 // for the service.yml file. For every service it registers it after trying
 // to import the package using Go's build.Import package
 func DiscoverServices() {
+	log.Println("debug: DiscoverServices started...")
 	gopath := strings.TrimRight(os.Getenv("GOPATH"), "/")
+
+	log.Printf("debug: gopath %s", gopath)
 	buildPath := strings.Replace(ProjectPath, gopath+"/src/", "", 1)
+	log.Printf("debug: buildPath %s", buildPath)
+
 	fd, _ := ioutil.ReadDir(ProjectPath)
 	for _, item := range fd {
 		serviceName := item.Name()
@@ -118,8 +124,8 @@ func DiscoverServices() {
 				// Check for service.yml and try to import the package
 				pkg, err := build.Import(fmt.Sprintf("%s/%s", buildPath, serviceName), "srcDir", 0)
 				if err != nil {
-					log.Errorf("Error registering %s", item.Name())
-					log.Error(err.Error())
+					log.Printf("error: Error registering %s", item.Name())
+					log.Printf("error: %s", err.Error())
 					continue
 				}
 
@@ -140,8 +146,7 @@ func DiscoverServices() {
 				}
 				b, err := ioutil.ReadFile(serviceConfigPath)
 				if err != nil {
-					log.Criticalf(err.Error())
-					os.Exit(1)
+					log.Fatal(err.Error())
 				}
 				yaml.Unmarshal(b, &serviceConfig)
 				for k, v := range serviceConfig.Env {
@@ -153,11 +158,7 @@ func DiscoverServices() {
 					MaxServiceNameLength = len(serviceName)
 				}
 
-				if binPath := os.Getenv("GOBIN"); binPath != "" {
-					service.BinPath = fmt.Sprintf("%s/%s", binPath, serviceName)
-				} else {
-					service.BinPath = fmt.Sprintf("%s/bin/%s", os.Getenv("GOPATH"), serviceName)
-				}
+				service.BinPath = getProperBinPath(serviceName)
 
 				// Add the service to the registry
 				Registry[serviceName] = service
@@ -167,4 +168,14 @@ func DiscoverServices() {
 			}
 		}
 	}
+}
+
+func getProperBinPath(serviceName string) string {
+	var binPath string
+	if gobin := os.Getenv("GOBIN"); gobin != "" {
+		binPath = fmt.Sprintf("%s/%s", gobin, serviceName)
+	} else {
+		binPath = fmt.Sprintf("%s/bin/%s", os.Getenv("GOPATH"), serviceName)
+	}
+	return binPath
 }

@@ -30,11 +30,18 @@ var StartCommand = &cli.Command{
 			Name:  "logs, l",
 			Usage: "Start logging after start",
 		},
+		cli.BoolFlag{
+			Name:  "debug, d",
+			Usage: "Debug mode",
+		},
 	},
 }
 
 // StartAction starts all the services (or the specified ones)
 func StartAction(c *cli.Context) error {
+	if c.Bool("debug") {
+		config.VerboseModeOn()
+	}
 	worker := func(service *services.Service) func() {
 		return func() { start(c, service) }
 	}
