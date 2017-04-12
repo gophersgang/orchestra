@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/gophersgang/orchestra/config"
 	"github.com/gophersgang/orchestra/services"
 	"github.com/wsxiaoys/terminal"
 )
@@ -30,22 +29,14 @@ var StartCommand = &cli.Command{
 			Name:  "logs, l",
 			Usage: "Start logging after start",
 		},
-		cli.BoolFlag{
-			Name:  "debug, d",
-			Usage: "Debug mode",
-		},
 	},
 }
 
 // StartAction starts all the services (or the specified ones)
 func StartAction(c *cli.Context) error {
-	if c.Bool("debug") {
-		config.VerboseModeOn()
-	}
 	worker := func(service *services.Service) func() {
 		return func() { start(c, service) }
 	}
-
 	pool := make(workerPool, runtime.NumCPU())
 	svcs := services.Sort(FilterServices(c))
 	for _, service := range svcs {
