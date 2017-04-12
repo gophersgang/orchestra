@@ -13,6 +13,8 @@ import (
 
 	"go/build"
 
+	"path/filepath"
+
 	"gopkg.in/yaml.v1"
 )
 
@@ -109,10 +111,11 @@ func (s *Service) IsRunning() bool {
 // to import the package using Go's build.Import package
 func DiscoverServices() {
 	log.Println("debug: DiscoverServices started...")
-	gopath := strings.TrimRight(os.Getenv("GOPATH"), "/")
+	properGoPath, _ := GetProperGopath(ProjectPath, os.Getenv("GOPATH"))
+	buildPath := strings.Replace(ProjectPath, filepath.Join(properGoPath, "src")+"/", "", 1)
 
-	log.Printf("debug: gopath %s", gopath)
-	buildPath := strings.Replace(ProjectPath, gopath+"/src/", "", 1)
+	log.Printf("debug: proper gopath %s", properGoPath)
+	log.Printf("debug: projectpath: %s", ProjectPath)
 	log.Printf("debug: buildPath %s", buildPath)
 
 	fd, _ := ioutil.ReadDir(ProjectPath)
@@ -178,4 +181,15 @@ func getProperBinPath(serviceName string) string {
 		binPath = fmt.Sprintf("%s/bin/%s", os.Getenv("GOPATH"), serviceName)
 	}
 	return binPath
+}
+
+// GetProperGopath deals with possible multiple folders in GOPATH env variable and picks the most fitting one
+func GetProperGopath(projectPath string, envGopath string) (string, error) {
+	parts := strings.Split(envGopath, ":")
+	for _, part := range parts {
+		if strings.Contains(projectPath, part) {
+			return part, nil
+		}
+	}
+	return "", fmt.Errorf("projectPath not in any of GOPATH folders! GOPATH: %s, projectPath: %s", envGopath, projectPath)
 }
